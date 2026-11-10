@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: oficina-billing-config
+data:
+  QUARKUS_PROFILE: "prod"
+  STORAGE_TYPE: "azure"
+  DB_USERNAME: "adminuser"
+  # Banco próprio do Billing (database "billing"), separado do banco do OS Service.
+  DB_URL: "jdbc:postgresql://oficina-postgres-server.postgres.database.azure.com:5432/billing?sslmode=require"
+  RABBITMQ_HOST: "rabbitmq.default.svc.cluster.local"
+  RABBITMQ_PORT: "5672"
+  OS_SERVICE_URL: "http://oficina-api-service:8080"
+  NEW_RELIC_APP_NAME: "Oficina Billing Service (AKS)"

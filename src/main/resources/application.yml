@@ -1,0 +1,82 @@
+quarkus:
+  application:
+    name: oficina-billing-service
+  swagger-ui:
+    always-include: true
+  http:
+    port: 8080
+  datasource:
+    db-kind: postgresql
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    jdbc:
+      url: ${DB_URL}
+  hibernate-orm:
+    log:
+      sql: false
+  log:
+    category:
+      "org.hibernate":
+        level: WARN
+    console:
+      json: true
+  flyway:
+    migrate-at-start: true
+  smallrye-jwt:
+    enabled: true
+  # Chamadas síncronas ao OS Service (dados da OS, cliente e veículo para o
+  # PDF do orçamento).
+  rest-client:
+    os-service:
+      url: ${OS_SERVICE_URL:http://localhost:8383}
+      connect-timeout: 2000
+      read-timeout: 5000
+
+# O Billing só valida o JWT (chave pública); quem emite é o OS Service.
+mp:
+  jwt:
+    verify:
+      issuer: "oficina-api-interna"
+      publickey:
+        location: "publicKey.pem"
+  messaging:
+    # Eventos do OS Service que o Billing consome. A fila é do Billing; a
+    # exchange (topic) é compartilhada por todos os microsserviços.
+    incoming:
+      os-events:
+        connector: smallrye-rabbitmq
+        exchange:
+          name: oficina.events
+          type: topic
+        queue:
+          name: billing.os-events
+        routing-keys: os.diagnostico-concluido,os.execucao-concluida,os.cancelada
+        # Mensagem que falha vai para a fila billing.os-events.dlq.
+        failure-strategy: reject
+        auto-bind-dlq: true
+    # Eventos que o Billing publica (routing key definida por mensagem).
+    outgoing:
+      billing-events:
+        connector: smallrye-rabbitmq
+        exchange:
+          name: oficina.events
+          type: topic
+        publish-confirms: true
+
+rabbitmq-host: ${RABBITMQ_HOST:localhost}
+rabbitmq-port: ${RABBITMQ_PORT:5672}
+rabbitmq-username: ${RABBITMQ_USERNAME:guest}
+rabbitmq-password: ${RABBITMQ_PASSWORD:guest}
+
+oficina:
+  outbox:
+    # Intervalo de entrega dos eventos pendentes da outbox ao RabbitMQ.
+    intervalo: 2s
+  storage:
+    # Armazenamento das assinaturas de aceite: "local" (disco do pod, só para
+    # desenvolvimento) ou "azure" (Azure Blob Storage). Ver StorageServiceProducer.
+    type: ${STORAGE_TYPE:local}
+    azure:
+      # O default é a connection string pública do emulador Azurite.
+      connection-string: ${AZURE_STORAGE_CONNECTION_STRING:DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;}
+      container: ${AZURE_STORAGE_CONTAINER:assinaturas}

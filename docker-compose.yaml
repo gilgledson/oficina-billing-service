@@ -1,0 +1,56 @@
+# Ambiente local do Billing Service: banco próprio, RabbitMQ e a aplicação.
+# Antes de subir: ./mvnw clean package -DskipTests
+services:
+  billing-db:
+    image: postgres:15-alpine
+    container_name: billing-postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=billing
+    ports:
+      - "25433:5432"
+    volumes:
+      - billing-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d billing" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Em produção o RabbitMQ é compartilhado pelos microsserviços; aqui sobe
+  # junto para o serviço rodar sozinho. Painel: http://localhost:15672 (guest/guest)
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: oficina-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  billing-service:
+    build:
+      context: .
+      dockerfile: src/main/docker/Dockerfile.jvm
+    container_name: oficina-billing-service
+    ports:
+      - "8384:8080"
+    environment:
+      - DB_URL=jdbc:postgresql://billing-db:5432/billing
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=postgres
+      - RABBITMQ_HOST=rabbitmq
+      - OS_SERVICE_URL=http://host.docker.internal:8383
+      - STORAGE_TYPE=local
+    depends_on:
+      billing-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+volumes:
+  billing-db-data:

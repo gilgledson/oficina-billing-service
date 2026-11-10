@@ -1,0 +1,58 @@
+####
+# This Dockerfile is used in order to build a container that runs the Quarkus application in JVM mode
+#
+# Before building the container image run:
+#
+# ./mvnw package
+#
+# Then, build the image with:
+#
+# docker build -f src/main/docker/Dockerfile.jvm -t quarkus/oficina-api-jvm .
+#
+# Then run the container using:
+#
+# docker run -i --rm -p 8080:8080 quarkus/oficina-api-jvm
+#
+# Base image: eclipse-temurin:17-jre (Eclipse Adoptium, Docker Hub). Trocado do
+# registry.access.redhat.com/ubi8/openjdk-17, que sofre com instabilidade
+# (502/timeout) em pulls anônimos a partir de runners de CI.
+#
+# Modern JDKs (>=10) já detectam limites de memória/CPU do container
+# automaticamente (-XX:+UseContainerSupport é o padrão). MaxRAMPercentage=50
+# reproduz o comportamento do antigo run-java.sh (JAVA_MAX_MEM_RATIO=50): até
+# metade da memória do container é usada como heap máximo.
+###
+FROM eclipse-temurin:17-jre
+
+ENV LANGUAGE='en_US:en'
+
+WORKDIR /deployments
+
+# We make four distinct layers so if there are application changes the library layers can be re-used
+COPY --chown=185 target/quarkus-app/lib/ /deployments/lib/
+COPY --chown=185 target/quarkus-app/*.jar /deployments/
+COPY --chown=185 target/quarkus-app/app/ /deployments/app/
+COPY --chown=185 target/quarkus-app/quarkus/ /deployments/quarkus/
+
+# A imagem UBI da Red Hat usada anteriormente deixava /deployments gravável
+# pelo grupo 0 (convenção do OpenShift para suportar UID arbitrário);
+# eclipse-temurin não segue essa convenção. O container roda com um UID
+# numérico (185) e GID 0, e o app grava localmente em ./uploads/assinaturas
+# (fallback de STORAGE_TYPE=local) — sem isso, a criação do diretório falha
+# com Permission Denied.
+RUN chmod -R g+rwX /deployments
+
+# New Relic Java Agent (APM): baixa o jar oficial (sem precisar de unzip —
+# o endpoint "current/newrelic.jar" já serve o jar puro) e usa a config
+# mínima do repo. A license key nunca fica no arquivo — vem da env var
+# NEW_RELIC_LICENSE_KEY, lida automaticamente pelo agent.
+ADD https://download.newrelic.com/newrelic/java-agent/newrelic-agent/current/newrelic.jar /opt/newrelic/newrelic.jar
+COPY src/main/docker/newrelic.yml /opt/newrelic/newrelic.yml
+RUN chmod -R g+rwX /opt/newrelic
+
+EXPOSE 8080
+USER 185
+ENV JAVA_OPTS_APPEND="-javaagent:/opt/newrelic/newrelic.jar -Dquarkus.http.host=0.0.0.0 -Djava.util.logging.manager=org.jboss.logmanager.LogManager -XX:MaxRAMPercentage=50"
+ENV JAVA_APP_JAR="/deployments/quarkus-run.jar"
+
+ENTRYPOINT exec java $JAVA_OPTS_APPEND -jar $JAVA_APP_JAR

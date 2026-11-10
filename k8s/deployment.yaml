@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oficina-billing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: oficina-billing
+  template:
+    metadata:
+      labels:
+        app: oficina-billing
+    spec:
+      containers:
+      - name: oficina-billing
+        image: docker.io/gilgledson/oficina-billing-service:latest
+        imagePullPolicy: Always
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+        ports:
+        - containerPort: 8080
+        startupProbe:
+          httpGet:
+            path: /q/health/started
+            port: 8080
+          periodSeconds: 5
+          failureThreshold: 30
+        readinessProbe:
+          httpGet:
+            path: /q/health/ready
+            port: 8080
+          periodSeconds: 10
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /q/health/live
+            port: 8080
+          periodSeconds: 15
+          failureThreshold: 3
+        envFrom:
+        - configMapRef:
+            name: oficina-billing-config
+        env:
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: oficina-billing-secrets
+              key: db-password
+        - name: RABBITMQ_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: oficina-billing-secrets
+              key: rabbitmq-username
+        - name: RABBITMQ_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: oficina-billing-secrets
+              key: rabbitmq-password
+        - name: AZURE_STORAGE_CONNECTION_STRING
+          valueFrom:
+            secretKeyRef:
+              name: oficina-billing-secrets
+              key: azure-storage-connection-string
+        - name: NEW_RELIC_LICENSE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: oficina-billing-secrets
+              key: new-relic-license-key

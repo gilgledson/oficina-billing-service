@@ -1,0 +1,28 @@
+# Config mínima do New Relic Java Agent. A license key NUNCA fica aqui —
+# vem da env var NEW_RELIC_LICENSE_KEY (o agent lê automaticamente e
+# sobrescreve o valor vazio abaixo). app_name também pode ser sobrescrito
+# via NEW_RELIC_APP_NAME, se precisar diferenciar ambientes (ex: staging).
+common: &default_settings
+  license_key: ''
+  agent_enabled: true
+  app_name: Oficina Billing Service
+  log_file_name: STDOUT
+  log_level: info
+
+  distributed_tracing:
+    enabled: true
+
+  transaction_tracer:
+    enabled: true
+
+  error_collector:
+    enabled: true
+
+development:
+  <<: *default_settings
+
+test:
+  <<: *default_settings
+
+production:
+  <<: *default_settings

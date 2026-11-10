@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            color: #333;
+            line-height: 1.4;
+            margin: 0;
+            padding: 0;
+        }
+
+        .header {
+            border-bottom: 2px solid #1a2a6c;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .header table {
+            width: 100%;
+        }
+
+        .company-name {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1a2a6c;
+        }
+
+        .invoice-title {
+            font-size: 28px;
+            text-align: right;
+            color: #666;
+            text-transform: uppercase;
+        }
+
+        .section {
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: bold;
+            background-color: #f4f4f4;
+            padding: 5px 10px;
+            border-left: 4px solid #1a2a6c;
+            margin-bottom: 10px;
+        }
+
+        .details-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .details-table td {
+            padding: 5px;
+            vertical-align: top;
+        }
+
+        .label {
+            font-weight: bold;
+            color: #555;
+            width: 120px;
+        }
+
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        .items-table th {
+            background-color: #1a2a6c;
+            color: white;
+            text-align: left;
+            padding: 8px;
+            font-size: 14px;
+        }
+
+        .items-table td {
+            border-bottom: 1px solid #ddd;
+            padding: 8px;
+            font-size: 13px;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .total-section {
+            margin-top: 30px;
+            text-align: right;
+        }
+
+        .total-box {
+            display: inline-block;
+            border-top: 2px solid #1a2a6c;
+            padding-top: 10px;
+            width: 250px;
+        }
+
+        .total-row {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1a2a6c;
+        }
+
+        .footer {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            text-align: center;
+            font-size: 10px;
+            color: #999;
+            border-top: 1px solid #eee;
+            padding-top: 5px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 12px;
+        }
+
+        .status-pendente {
+            background-color: #ffeeba;
+            color: #856404;
+        }
+
+        .status-pago {
+            background-color: #c3e6cb;
+            color: #155724;
+        }
+
+        .status-cancelada {
+            background-color: #f5c6cb;
+            color: #721c24;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <table>
+            <tr>
+                <td>
+                    <div class="company-name">OFICINA TECH</div>
+                    <div>Soluções Automotivas Premium</div>
+                    <div>CNPJ: 00.000.000/0001-00</div>
+                </td>
+                <td class="text-right">
+                    <div class="invoice-title">Fatura</div>
+                    <div>Nº {fatura.id.toString().substring(0,8).toUpperCase()}</div>
+                    <div>Emissão: {fatura.dataEmissao.format('dd/MM/yyyy')}</div>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Informações do Cliente</div>
+        <table class="details-table">
+            <tr>
+                <td class="label">Nome:</td>
+                <td>{cliente.nome}</td>
+                <td class="label">CPF/CNPJ:</td>
+                <td>{cliente.cpfCnpj}</td>
+            </tr>
+            <tr>
+                <td class="label">E-mail:</td>
+                <td>{cliente.email}</td>
+                <td class="label">Telefone:</td>
+                <td>{cliente.telefone}</td>
+            </tr>
+            <tr>
+                <td class="label">Endereço:</td>
+                <td colspan="3">{cliente.enderecoCompleto}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Informações do Veículo</div>
+        <table class="details-table">
+            <tr>
+                <td class="label">Marca/Modelo:</td>
+                <td>{veiculo.marca} / {veiculo.modelo}</td>
+                <td class="label">Placa:</td>
+                <td>{veiculo.placa}</td>
+                <td class="label">Ano:</td>
+                <td>{veiculo.ano}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Serviços Realizados</div>
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th>Descrição</th>
+                    <th class="text-right">Qtd</th>
+                    <th class="text-right">Vlr. Unitário</th>
+                    <th class="text-right">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {#for item in os.servicos}
+                <tr>
+                    <td>{item.nome}</td>
+                    <td class="text-right">{item.quantidade}</td>
+                    <td class="text-right">R$ {item.precoUnitario}</td>
+                    <td class="text-right">R$ {item.total}</td>
+                </tr>
+                {/for}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Produtos Utilizados</div>
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th>Serviço Relacionado</th>
+                    <th>Descrição do Produto</th>
+                    <th class="text-right">Qtd</th>
+                    <th class="text-right">Vlr. Unitário</th>
+                    <th class="text-right">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {#for servico in os.servicos}
+                    {#for item in servico.produtos}
+                    <tr>
+                        <td>{servico.nome}</td>
+                        <td>{item.nome}</td>
+                        <td class="text-right">{item.quantidade}</td>
+                        <td class="text-right">R$ {item.precoUnitario}</td>
+                        <td class="text-right">R$ {item.total}</td>
+                    </tr>
+                    {/for}
+                {/for}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="total-section">
+        <table>
+            <tr>
+                <td style="width: 70%; vertical-align: bottom; text-align: left;">
+                    <div><strong>Status:</strong>
+                        <span class="status-badge status-{fatura.status.toString().toLowerCase()}">
+                            {fatura.status}
+                        </span>
+                    </div>
+                    <div style="margin-top: 10px;"><strong>Vencimento:</strong>
+                        {fatura.dataVencimento.format('dd/MM/yyyy')}</div>
+                </td>
+                <td style="width: 30%;">
+                    <div class="total-box">
+                        <table style="width: 100%;">
+                            <tr class="total-row">
+                                <td style="text-align: left;">TOTAL:</td>
+                                <td class="text-right">R$ {fatura.valorTotal}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="footer">
+        <div style="margin-bottom: 50px; margin-top: 30px;">
+            <table style="width: 100%;">
+                <tr>
+                    <td style="width: 50%; text-align: center;">
+                        <div style="border-top: 1px solid #333; width: 80%; margin: 0 auto;"></div>
+                        <div style="font-size: 12px; margin-top: 5px;">Assinatura da Oficina</div>
+                    </td>
+                    <td style="width: 50%; text-align: center;">
+                        <div style="border-top: 1px solid #333; width: 80%; margin: 0 auto;"></div>
+                        <div style="font-size: 12px; margin-top: 5px;">Assinatura do Cliente (Aceite do Orçamento)</div>
+                    </td>
+                </tr>
+            </table>
+        </div>
+        Este documento é uma representação da fatura gerada pelo sistema Oficina Tech.
+        <br />
+        Obrigado pela preferência!
+    </div>
+
+</body>
+
+</html>

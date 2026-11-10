@@ -1,0 +1,135 @@
+name: CI/CD - Billing Service
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  # Roda em todo PR e em todo push na main. É a checagem obrigatória da
+  # proteção da branch main.
+  build-test-quality:
+    name: Build, testes e qualidade
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Baixar o código
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # o SonarCloud precisa do histórico para atribuir as linhas
+
+    - name: Configurar o Java (JDK 17)
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: maven
+
+    # verify = compila, roda os testes unitários e falha se a cobertura de
+    # linhas ficar abaixo de 80% (regra do JaCoCo no pom.xml).
+    - name: Build, testes e cobertura mínima de 80%
+      run: |
+        chmod +x mvnw
+        ./mvnw -B clean verify
+
+    - name: Publicar relatório de cobertura
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: jacoco-report
+        path: target/site/jacoco
+
+    # Requer o secret SONAR_TOKEN e as variáveis SONAR_ORGANIZATION e
+    # SONAR_PROJECT_KEY configurados no repositório.
+    - name: Análise de qualidade (SonarCloud)
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      run: |
+        ./mvnw -B org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+          -Dsonar.host.url=https://sonarcloud.io \
+          -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }} \
+          -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }} \
+          -Dsonar.qualitygate.wait=true
+
+  deploy:
+    name: Imagem Docker e deploy no AKS
+    needs: build-test-quality
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Baixar o código
+      uses: actions/checkout@v4
+
+    - name: Configurar o Java (JDK 17)
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: maven
+
+    - name: Build da aplicação (JAR)
+      run: |
+        chmod +x mvnw
+        ./mvnw -B clean package -DskipTests
+
+    - name: Login no Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Build e push da imagem Docker
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: src/main/docker/Dockerfile.jvm
+        push: true
+        tags: |
+          gilgledson/oficina-billing-service:latest
+          gilgledson/oficina-billing-service:${{ github.sha }}
+
+    - name: Autenticar no Azure
+      uses: azure/login@v2
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Configurar contexto do AKS
+      uses: azure/aks-set-context@v3
+      with:
+        resource-group: oficina-resources
+        cluster-name: oficina-aks-cluster
+
+    # kubectl create secret --from-literal em vez de YAML com envsubst: não
+    # quebra quando algum valor tem caractere especial de YAML.
+    - name: Gerar o Secret a partir dos GitHub Secrets
+      env:
+        DB_PASSWORD: ${{ secrets.BILLING_DB_PASSWORD }}
+        RABBITMQ_USERNAME: ${{ secrets.RABBITMQ_USERNAME }}
+        RABBITMQ_PASSWORD: ${{ secrets.RABBITMQ_PASSWORD }}
+        AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
+        NEW_RELIC_LICENSE_KEY: ${{ secrets.NEW_RELIC_LICENSE_KEY }}
+      run: |
+        kubectl create secret generic oficina-billing-secrets \
+          --from-literal=db-password="$DB_PASSWORD" \
+          --from-literal=rabbitmq-username="$RABBITMQ_USERNAME" \
+          --from-literal=rabbitmq-password="$RABBITMQ_PASSWORD" \
+          --from-literal=azure-storage-connection-string="$AZURE_STORAGE_CONNECTION_STRING" \
+          --from-literal=new-relic-license-key="$NEW_RELIC_LICENSE_KEY" \
+          --dry-run=client -o yaml > k8s/secret.yaml
+
+    - name: Deploy no Kubernetes (AKS)
+      uses: Azure/k8s-deploy@v5
+      with:
+        manifests: |
+          k8s/configMap.yaml
+          k8s/secret.yaml
+          k8s/deployment.yaml
+          k8s/service.yaml
+          k8s/hpa.yaml
+          k8s/ingress.yaml
+        images: gilgledson/oficina-billing-service:${{ github.sha }}
