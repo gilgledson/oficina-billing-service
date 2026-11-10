@@ -75,7 +75,7 @@ Fila `billing.os-events`, ligada à exchange `oficina.events` (tipo `topic`).
 |---|---|---|
 | `os.diagnostico-concluido` | `ordemServicoId`, `valorTotal`, `metodoPagamento` (opcional) | Gera o orçamento e publica `billing.orcamento-gerado` |
 | `os.execucao-concluida` | `ordemServicoId`, `valorTotal` | Atualiza o orçamento com o valor final |
-| `os.cancelada` | `ordemServicoId` | **Compensação:** cancela o orçamento |
+| `os.cancelada`, `os.rejeitada` | `ordemServicoId` | **Compensação:** cancela o orçamento |
 
 ### Eventos publicados
 
@@ -135,7 +135,7 @@ docker compose up --build
 ```
 
 A API sobe em `http://localhost:8384`, o Postgres na porta `25433` e o painel
-do RabbitMQ em `http://localhost:15672` (`guest`/`guest`).
+do RabbitMQ em `http://localhost:15672` (`oficina`/`oficina`).
 
 Testes e cobertura (falha abaixo de 80% de linhas; relatório em
 `target/site/jacoco/index.html`):
@@ -176,8 +176,6 @@ Configuração necessária no repositório:
 - Integração com o **Mercado Pago**: hoje o pagamento é confirmado manualmente
   pelo atendente em `/confirmar-pagamento`.
 - Cenário **BDD** do fluxo completo da OS.
-- O OS Service ainda precisa expor as rotas `/api/integracao/*` e publicar e
-  consumir os eventos das tabelas acima.
 - Evidência de cobertura e link do SonarCloud, depois da primeira execução do
   pipeline.
 - O serviço ainda não foi executado contra Postgres e RabbitMQ reais; a

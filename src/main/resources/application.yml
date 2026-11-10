@@ -50,7 +50,7 @@ mp:
           type: topic
         queue:
           name: billing.os-events
-        routing-keys: os.diagnostico-concluido,os.execucao-concluida,os.cancelada
+        routing-keys: os.diagnostico-concluido,os.execucao-concluida,os.cancelada,os.rejeitada
         # Mensagem que falha vai para a fila billing.os-events.dlq.
         failure-strategy: reject
         auto-bind-dlq: true

@@ -27,6 +27,7 @@ public class OsEventsConsumer {
     public static final String DIAGNOSTICO_CONCLUIDO = "os.diagnostico-concluido";
     public static final String EXECUCAO_CONCLUIDA = "os.execucao-concluida";
     public static final String ORDEM_CANCELADA = "os.cancelada";
+    public static final String ORDEM_REJEITADA = "os.rejeitada";
 
     private static final Logger LOG = Logger.getLogger(OsEventsConsumer.class);
 
@@ -61,7 +62,8 @@ public class OsEventsConsumer {
         switch (routingKey) {
             case DIAGNOSTICO_CONCLUIDO -> listener.onDiagnosticoConcluido(payload);
             case EXECUCAO_CONCLUIDA -> listener.onExecucaoConcluida(payload);
-            case ORDEM_CANCELADA -> listener.onOrdemCancelada(payload);
+            // OS cancelada ou rejeitada direto no OS Service: o orçamento deixa de valer.
+            case ORDEM_CANCELADA, ORDEM_REJEITADA -> listener.onOrdemCancelada(payload);
             default -> LOG.debugf("Evento %s ignorado pelo Billing", routingKey);
         }
     }

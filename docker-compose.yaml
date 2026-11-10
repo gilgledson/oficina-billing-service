@@ -19,10 +19,15 @@ services:
       retries: 5
 
   # Em produção o RabbitMQ é compartilhado pelos microsserviços; aqui sobe
-  # junto para o serviço rodar sozinho. Painel: http://localhost:15672 (guest/guest)
+  # junto para o serviço rodar sozinho. Painel: http://localhost:15672 (oficina/oficina)
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
     container_name: oficina-rabbitmq
+    environment:
+      # O usuário padrão "guest" só é aceito a partir de localhost; o serviço
+      # conecta de outro container, então usa este.
+      - RABBITMQ_DEFAULT_USER=oficina
+      - RABBITMQ_DEFAULT_PASS=oficina
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -44,6 +49,8 @@ services:
       - DB_USERNAME=postgres
       - DB_PASSWORD=postgres
       - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_USERNAME=oficina
+      - RABBITMQ_PASSWORD=oficina
       - OS_SERVICE_URL=http://host.docker.internal:8383
       - STORAGE_TYPE=local
     depends_on:

@@ -89,6 +89,15 @@ class OsEventsConsumerTest {
     }
 
     @Test
+    @DisplayName("OS rejeitada direto no OS Service também cancela o orçamento")
+    void deveDespacharOrdemRejeitada() {
+        consumer.consumir(mensagem(OsEventsConsumer.ORDEM_REJEITADA, null));
+
+        verify(listener).onOrdemCancelada(payload);
+        assertTrue(ack.get());
+    }
+
+    @Test
     @DisplayName("Evento desconhecido deve ser confirmado e ignorado")
     void deveIgnorarEventoDesconhecido() {
         consumer.consumir(mensagem("os.aberta", null));
