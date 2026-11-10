@@ -160,13 +160,14 @@ Testes e cobertura (falha abaixo de 80% de linhas; relatório em
 O pipeline em [`.github/workflows/ci.yml`](.github/workflows/ci.yml) tem dois jobs:
 
 1. **Build, testes e qualidade** — em todo PR e push na `main`: compila, roda
-   os testes, exige 80% de cobertura e envia a análise ao SonarCloud.
+   os testes e exige 80% de cobertura. Se o secret `SONAR_TOKEN` estiver
+   configurado, envia também a análise ao SonarCloud.
 2. **Deploy** — só em push na `main`: publica a imagem no Docker Hub e aplica
    os manifestos de [`k8s/`](k8s) no AKS.
 
 Configuração necessária no repositório:
 
-- Secrets: `SONAR_TOKEN`, `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`,
+- Secrets: `SONAR_TOKEN` (opcional), `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`,
   `AZURE_CREDENTIALS`, `BILLING_DB_PASSWORD`, `RABBITMQ_USERNAME`,
   `RABBITMQ_PASSWORD`, `AZURE_STORAGE_CONNECTION_STRING`, `NEW_RELIC_LICENSE_KEY`.
 - Variables: `SONAR_ORGANIZATION`, `SONAR_PROJECT_KEY`.

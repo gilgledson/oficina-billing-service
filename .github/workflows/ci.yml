@@ -15,6 +15,10 @@ jobs:
   build-test-quality:
     name: Build, testes e qualidade
     runs-on: ubuntu-latest
+    env:
+      # No nível do job para poder ser usado no "if" da etapa do SonarCloud
+      # (o contexto "secrets" não é aceito em condições).
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
     steps:
     - name: Baixar o código
@@ -43,11 +47,11 @@ jobs:
         name: jacoco-report
         path: target/site/jacoco
 
-    # Requer o secret SONAR_TOKEN e as variáveis SONAR_ORGANIZATION e
-    # SONAR_PROJECT_KEY configurados no repositório.
+    # Opcional: só roda se o secret SONAR_TOKEN estiver configurado (junto com
+    # as variables SONAR_ORGANIZATION e SONAR_PROJECT_KEY). Sem o token, a
+    # análise é feita localmente e o relatório vai como evidência no README.
     - name: Análise de qualidade (SonarCloud)
-      env:
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      if: env.SONAR_TOKEN != ''
       run: |
         ./mvnw -B org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
           -Dsonar.host.url=https://sonarcloud.io \
