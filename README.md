@@ -172,6 +172,10 @@ Configuração necessária no repositório:
   `RABBITMQ_PASSWORD`, `AZURE_STORAGE_CONNECTION_STRING`, `NEW_RELIC_LICENSE_KEY`.
 - Variables: `SONAR_ORGANIZATION`, `SONAR_PROJECT_KEY`.
 
+## Teste integrado
+
+Validado de ponta a ponta com Postgres e RabbitMQ reais, junto com os outros dois serviços, pelo ambiente integrado do OS Service ([e2e](https://github.com/gilgledson/fiat-tech-challenge-ddd/tree/main/e2e)).
+
 ## Pendências
 
 - Integração com o **Mercado Pago**: hoje o pagamento é confirmado manualmente
@@ -179,5 +183,3 @@ Configuração necessária no repositório:
 - Cenário **BDD** do fluxo completo da OS.
 - Evidência de cobertura e link do SonarCloud, depois da primeira execução do
   pipeline.
-- O serviço ainda não foi executado contra Postgres e RabbitMQ reais; a
-  validação até aqui é de compilação e testes unitários.

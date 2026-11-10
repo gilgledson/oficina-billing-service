@@ -54,6 +54,10 @@ mp:
         # Mensagem que falha vai para a fila billing.os-events.dlq.
         failure-strategy: reject
         auto-bind-dlq: true
+        # Sem isto o conector não cria a exchange de mensagens mortas e o
+        # canal de entrada não sobe.
+        dlx:
+          declare: true
     # Eventos que o Billing publica (routing key definida por mensagem).
     outgoing:
       billing-events:
