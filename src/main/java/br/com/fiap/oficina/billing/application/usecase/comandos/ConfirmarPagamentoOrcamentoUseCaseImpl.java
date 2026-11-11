@@ -22,10 +22,16 @@ public class ConfirmarPagamentoOrcamentoUseCaseImpl implements ConfirmarPagament
     @Override
     @Transactional
     public void execute(UUID orcamentoId, MetodoPagamento metodoPagamento) {
+        execute(orcamentoId, metodoPagamento, null);
+    }
+
+    @Override
+    @Transactional
+    public void execute(UUID orcamentoId, MetodoPagamento metodoPagamento, String pagamentoId) {
         Orcamento orcamento = repository.buscarPorId(orcamentoId)
                 .orElseThrow(() -> new NotFoundException("Orcamento não encontrada"));
 
-        orcamento.pagar(metodoPagamento);
+        orcamento.pagar(metodoPagamento, pagamentoId);
         repository.atualizar(orcamento);
 
         eventPublisher.publicar(new OrcamentoPagoEvent(orcamento.getId(), orcamento.getOrdemServicoId()));

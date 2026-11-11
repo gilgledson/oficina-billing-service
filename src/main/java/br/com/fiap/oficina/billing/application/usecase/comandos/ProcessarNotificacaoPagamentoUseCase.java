@@ -59,6 +59,12 @@ public class ProcessarNotificacaoPagamentoUseCase {
 
     private void aprovar(Orcamento orcamento, Pagamento pagamento) {
         if (orcamento.getStatus() == StatusOrcamento.PAGO) {
+            // Mesma notificação reenviada: nada a fazer. Outro pagamento do mesmo
+            // orçamento (link antigo, pagamento no balcão): o cliente pagou duas vezes.
+            if (!pagamento.id().equals(orcamento.getPagamentoId())) {
+                LOG.errorf("Pagamento %s aprovado para o orçamento %s, que já estava pago (pagamento %s): "
+                        + "é preciso estornar", pagamento.id(), orcamento.getId(), orcamento.getPagamentoId());
+            }
             return;
         }
         if (orcamento.getStatus() == StatusOrcamento.CANCELADA) {
@@ -71,7 +77,7 @@ public class ProcessarNotificacaoPagamentoUseCase {
                     pagamento.valor(), orcamento.getId(), orcamento.getValorTotal());
             return;
         }
-        confirmarPagamento.execute(orcamento.getId(), pagamento.metodoPagamento());
+        confirmarPagamento.execute(orcamento.getId(), pagamento.metodoPagamento(), pagamento.id());
     }
 
     private void recusar(Orcamento orcamento, Pagamento pagamento) {

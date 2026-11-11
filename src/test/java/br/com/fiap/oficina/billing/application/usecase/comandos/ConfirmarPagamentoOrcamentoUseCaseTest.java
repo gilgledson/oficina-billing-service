@@ -57,6 +57,22 @@ class ConfirmarPagamentoOrcamentoUseCaseTest {
     }
 
     @Test
+    @DisplayName("Pagamento vindo do provedor guarda o ID do pagamento no orçamento")
+    void deveGuardarIdDoPagamentoDoProvedor() {
+        UUID orcamentoId = UUID.randomUUID();
+        UUID osId = UUID.randomUUID();
+        Orcamento orcamento = new Orcamento(orcamentoId, null, osId, null,
+                new BigDecimal("400.00"), StatusOrcamento.PENDENTE, null);
+        when(repository.buscarPorId(orcamentoId)).thenReturn(Optional.of(orcamento));
+
+        useCase.execute(orcamentoId, MetodoPagamento.CARTAO_CREDITO, "pag-99");
+
+        assertEquals(StatusOrcamento.PAGO, orcamento.getStatus());
+        assertEquals("pag-99", orcamento.getPagamentoId());
+        verify(eventPublisher).publicar(new OrcamentoPagoEvent(orcamentoId, osId));
+    }
+
+    @Test
     @DisplayName("Deve lançar NotFoundException quando Orcamento não for encontrada")
     void deveLancarExcecaoQuandoFaturaNaoEncontrada() {
         UUID orcamentoId = UUID.randomUUID();

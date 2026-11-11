@@ -67,6 +67,9 @@ public class OrcamentoJpaEntity {
     @Column(name = "link_pagamento")
     private String linkPagamento;
 
+    @Column(name = "pagamento_id")
+    private String pagamentoId;
+
     public Orcamento toEntity() {
         Orcamento orcamento = Orcamento.reconstruir(
                 id,
@@ -79,6 +82,7 @@ public class OrcamentoJpaEntity {
                 assinaturaCliente);
         orcamento.setPagamentoExternoId(pagamentoExternoId);
         orcamento.setLinkPagamento(linkPagamento);
+        orcamento.setPagamentoId(pagamentoId);
         return orcamento;
     }
 
@@ -94,6 +98,7 @@ public class OrcamentoJpaEntity {
         entity.setAssinaturaCliente(orcamento.getAssinaturaUrl());
         entity.setPagamentoExternoId(orcamento.getPagamentoExternoId());
         entity.setLinkPagamento(orcamento.getLinkPagamento());
+        entity.setPagamentoId(orcamento.getPagamentoId());
         return entity;
     }
 

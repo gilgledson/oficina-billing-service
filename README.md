@@ -132,9 +132,15 @@ sequenceDiagram
 - **Notificação não é verdade:** o webhook só traz o ID do pagamento. O
   Billing consulta o pagamento na API do Mercado Pago e só confirma se ele
   estiver aprovado, referenciar o orçamento e cobrir o valor total.
-- **Assinatura:** com `MERCADOPAGO_WEBHOOK_SECRET` configurado, o header
-  `x-signature` é conferido (HMAC-SHA256) e notificação com assinatura
-  inválida recebe `401`.
+- **Assinatura:** o header `x-signature` é conferido (HMAC-SHA256) com
+  `MERCADOPAGO_WEBHOOK_SECRET`, e notificação com assinatura inválida recebe
+  `401`. Sem a chave configurada, o webhook recusa todas as notificações.
+- **Uma cobrança por orçamento:** gerar o link de novo atualiza a preferência
+  que já existe, em vez de criar outra. O link expira no fim do dia de
+  vencimento do orçamento.
+- **Pagamento em dobro:** o orçamento guarda o ID do pagamento que o quitou. Um
+  segundo pagamento aprovado para o mesmo orçamento não é confirmado e fica
+  registrado em log de erro para estorno manual.
 - **Idempotência:** o Mercado Pago reenvia a mesma notificação; orçamento já
   pago não é confirmado de novo.
 - **Pagamento recusado:** o orçamento continua `PENDENTE` e a OS continua
@@ -146,11 +152,19 @@ sequenceDiagram
   desligada e o pagamento é registrado pelo atendente em `/confirmar-pagamento`
   (rota que continua valendo para pagamento no balcão).
 
-Para configurar: crie uma aplicação em
-[Suas integrações](https://www.mercadopago.com.br/developers/panel/app), copie
-o access token de teste para `MERCADOPAGO_ACCESS_TOKEN`, cadastre o webhook de
-pagamentos apontando para `/api/orcamentos/webhooks/mercadopago` e copie a
-chave secreta dele para `MERCADOPAGO_WEBHOOK_SECRET`.
+Para configurar:
+
+1. Crie uma aplicação do tipo **Checkout Pro** em
+   [Suas integrações](https://www.mercadopago.com.br/developers/panel/app).
+2. Em Credenciais → Teste, copie o Access Token para
+   `MERCADOPAGO_ACCESS_TOKEN`. No Checkout Pro a credencial de teste é a da
+   conta de vendedor de teste criada junto com a aplicação, e começa com
+   `APP_USR-` (não com `TEST-`).
+3. Cadastre o webhook de pagamentos apontando para
+   `/api/orcamentos/webhooks/mercadopago` e copie a chave secreta dele para
+   `MERCADOPAGO_WEBHOOK_SECRET`.
+4. Para pagar em teste, entre no link com a conta de comprador de teste da
+   aplicação.
 
 ## API
 
@@ -210,8 +224,10 @@ Testes e cobertura (falha abaixo de 80% de linhas; relatório em
 | `STORAGE_TYPE` | `local` ou `azure` | `local` |
 | `AZURE_STORAGE_CONNECTION_STRING`, `AZURE_STORAGE_CONTAINER` | Blob das assinaturas | emulador Azurite |
 | `MERCADOPAGO_ACCESS_TOKEN` | Access token da aplicação no Mercado Pago | vazio (integração desligada) |
-| `MERCADOPAGO_WEBHOOK_SECRET` | Chave secreta do webhook | vazio (assinatura não conferida) |
+| `MERCADOPAGO_WEBHOOK_SECRET` | Chave secreta do webhook | vazio (o webhook recusa tudo) |
 | `MERCADOPAGO_NOTIFICATION_URL` | URL pública do webhook, enviada em cada cobrança | vazio (vale a do painel) |
+| `MERCADOPAGO_BACK_URL` | Página da oficina para onde o cliente volta depois de pagar | vazio (não redireciona) |
+| `MERCADOPAGO_STATEMENT_DESCRIPTOR` | Nome na fatura do cartão | `OFICINA` |
 | `MERCADOPAGO_API_URL` | Endereço da API do Mercado Pago | `https://api.mercadopago.com` |
 
 ## CI/CD
@@ -241,7 +257,11 @@ Validado de ponta a ponta com Postgres e RabbitMQ reais, junto com os outros doi
 - Mercado Pago: a integração foi validada com testes unitários e, no ambiente
   integrado, contra um Mercado Pago simulado. Falta rodar com credenciais de
   teste reais e cadastrar o webhook no painel.
-- Estorno automático quando chega pagamento de um orçamento cancelado.
+- Estorno automático quando chega pagamento de um orçamento cancelado ou já
+  pago; hoje fica em log de erro.
+- A cobrança vai sem os dados do pagador (e-mail e nome), que contam na
+  avaliação de qualidade do Mercado Pago. Eles estão no OS Service, e a
+  cobrança nasce de um evento, sem JWT de usuário para repassar na consulta.
 - O OS Service ainda não consome `billing.pagamento-recusado`.
 - Evidência de cobertura e link do SonarCloud, depois da primeira execução do
   pipeline.

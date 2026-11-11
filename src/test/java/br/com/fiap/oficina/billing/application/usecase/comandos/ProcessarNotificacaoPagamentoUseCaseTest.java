@@ -68,7 +68,7 @@ class ProcessarNotificacaoPagamentoUseCaseTest {
 
         useCase.executar(PAGAMENTO_ID);
 
-        verify(confirmarPagamento).execute(orcamento.getId(), MetodoPagamento.PIX);
+        verify(confirmarPagamento).execute(orcamento.getId(), MetodoPagamento.PIX, PAGAMENTO_ID);
         verifyNoInteractions(eventPublisher);
     }
 
@@ -76,6 +76,19 @@ class ProcessarNotificacaoPagamentoUseCaseTest {
     @DisplayName("Notificação repetida de orçamento já pago não confirma de novo")
     void deveIgnorarNotificacaoRepetida() {
         Orcamento orcamento = orcamento(StatusOrcamento.PAGO);
+        orcamento.setPagamentoId(PAGAMENTO_ID);
+        provedorResponde(orcamento.getId(), StatusPagamento.APROVADO, "185.00");
+
+        useCase.executar(PAGAMENTO_ID);
+
+        verifyNoInteractions(confirmarPagamento, eventPublisher);
+    }
+
+    @Test
+    @DisplayName("Segundo pagamento de orçamento já pago não confirma de novo")
+    void naoDeveConfirmarSegundoPagamento() {
+        Orcamento orcamento = orcamento(StatusOrcamento.PAGO);
+        orcamento.setPagamentoId("outro-pagamento");
         provedorResponde(orcamento.getId(), StatusPagamento.APROVADO, "185.00");
 
         useCase.executar(PAGAMENTO_ID);
@@ -156,7 +169,7 @@ class ProcessarNotificacaoPagamentoUseCaseTest {
         provedorResponde(inexistente, StatusPagamento.APROVADO, "185.00");
         useCase.executar(PAGAMENTO_ID);
 
-        verify(confirmarPagamento, never()).execute(any(), any());
+        verify(confirmarPagamento, never()).execute(any(), any(), any());
         verifyNoInteractions(eventPublisher);
     }
 }

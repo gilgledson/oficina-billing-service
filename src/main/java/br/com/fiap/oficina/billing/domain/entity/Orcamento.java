@@ -25,6 +25,8 @@ public class Orcamento {
     private String pagamentoExternoId;
     /** Link em que o cliente paga o orçamento. */
     private String linkPagamento;
+    /** ID, no provedor, do pagamento que quitou o orçamento. Nulo em pagamento no balcão. */
+    private String pagamentoId;
 
     public static Orcamento reconstruir(UUID id, LocalDate dataEmissao, UUID ordemServicoId, LocalDate dataVencimento,
             BigDecimal valorTotal, StatusOrcamento status, MetodoPagamento metodoPagamento, String assinaturaUrl) {
@@ -104,6 +106,12 @@ public class Orcamento {
         }
         this.pagamentoExternoId = pagamentoExternoId;
         this.linkPagamento = linkPagamento;
+    }
+
+    /** Pagamento aprovado no provedor de pagamentos. */
+    public void pagar(MetodoPagamento metodoPagamento, String pagamentoId) {
+        pagar(metodoPagamento);
+        this.pagamentoId = pagamentoId;
     }
 
     public void pendente() {

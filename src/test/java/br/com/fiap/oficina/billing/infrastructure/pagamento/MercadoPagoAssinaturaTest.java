@@ -57,9 +57,11 @@ class MercadoPagoAssinaturaTest {
     }
 
     @Test
-    @DisplayName("Sem chave configurada, a conferência é dispensada")
-    void deveDispensarConferenciaSemChave() {
-        assertTrue(new MercadoPagoAssinatura(Optional.empty()).valida(null, null, null));
-        assertTrue(new MercadoPagoAssinatura(Optional.of(" ")).valida("qualquer", null, "1"));
+    @DisplayName("Sem chave configurada, nenhuma notificação é aceita")
+    void deveRecusarTudoSemChave() {
+        String header = header("id:123456;request-id:req-1;ts:" + TS + ";");
+
+        assertFalse(new MercadoPagoAssinatura(Optional.empty()).valida(header, "req-1", "123456"));
+        assertFalse(new MercadoPagoAssinatura(Optional.of(" ")).valida(header, "req-1", "123456"));
     }
 }

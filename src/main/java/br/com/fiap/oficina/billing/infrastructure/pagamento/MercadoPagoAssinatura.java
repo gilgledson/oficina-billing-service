@@ -20,9 +20,14 @@ import jakarta.enterprise.context.ApplicationScoped;
  * calculado, com a chave secreta do webhook, sobre
  * {@code id:<data.id>;request-id:<x-request-id>;ts:<ts>;}.
  *
- * <p>Sem chave configurada a conferência é dispensada. Isso só é aceitável
- * porque a notificação nunca é tomada como verdade: o pagamento é sempre
- * consultado no Mercado Pago antes de qualquer efeito.
+ * <p>Sem chave configurada nenhuma notificação é aceita: um webhook público
+ * sem conferência de origem deixaria qualquer um disparar consultas ao
+ * Mercado Pago em nome da oficina.
+ *
+ * <p>O {@code ts} não tem prazo de validade de propósito. O Mercado Pago reenvia
+ * a mesma notificação por até um dia, e repetir uma notificação antiga não
+ * causa dano: o pagamento é sempre consultado na API e a confirmação é
+ * idempotente.
  */
 @ApplicationScoped
 public class MercadoPagoAssinatura {
@@ -37,10 +42,7 @@ public class MercadoPagoAssinatura {
     }
 
     public boolean valida(String xSignature, String xRequestId, String dataId) {
-        if (segredo.isEmpty()) {
-            return true;
-        }
-        if (xSignature == null || dataId == null) {
+        if (segredo.isEmpty() || xSignature == null || dataId == null) {
             return false;
         }
         String ts = null;

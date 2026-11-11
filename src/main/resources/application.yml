@@ -81,10 +81,15 @@ oficina:
   # o pagamento segue manual, em /confirmar-pagamento.
   mercadopago:
     access-token: ${MERCADOPAGO_ACCESS_TOKEN:}
-    # Chave secreta do webhook, para conferir o header x-signature.
+    # Chave secreta do webhook, para conferir o header x-signature. Sem ela o
+    # webhook recusa todas as notificações.
     webhook-secret: ${MERCADOPAGO_WEBHOOK_SECRET:}
     # URL pública de POST /api/orcamentos/webhooks/mercadopago.
     notification-url: ${MERCADOPAGO_NOTIFICATION_URL:}
+    # Página da oficina para onde o cliente volta depois de pagar (opcional).
+    back-url: ${MERCADOPAGO_BACK_URL:}
+    # Nome que aparece na fatura do cartão do cliente.
+    statement-descriptor: ${MERCADOPAGO_STATEMENT_DESCRIPTOR:OFICINA}
   outbox:
     # Intervalo de entrega dos eventos pendentes da outbox ao RabbitMQ.
     intervalo: 2s

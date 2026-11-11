@@ -13,6 +13,7 @@ import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
@@ -31,6 +32,11 @@ public interface MercadoPagoClient {
     PreferenciaResponse criarPreferencia(@HeaderParam(HttpHeaders.AUTHORIZATION) String authorization,
             PreferenciaRequest request);
 
+    @PUT
+    @Path("checkout/preferences/{id}")
+    PreferenciaResponse atualizarPreferencia(@HeaderParam(HttpHeaders.AUTHORIZATION) String authorization,
+            @PathParam("id") String id, PreferenciaRequest request);
+
     @GET
     @Path("v1/payments/{id}")
     PagamentoResponse buscarPagamento(@HeaderParam(HttpHeaders.AUTHORIZATION) String authorization,
@@ -40,12 +46,23 @@ public interface MercadoPagoClient {
     record PreferenciaRequest(
             List<Item> items,
             @JsonProperty("external_reference") String externalReference,
-            @JsonProperty("notification_url") String notificationUrl) {
+            @JsonProperty("notification_url") String notificationUrl,
+            @JsonProperty("statement_descriptor") String statementDescriptor,
+            @JsonProperty("back_urls") BackUrls backUrls,
+            @JsonProperty("auto_return") String autoReturn,
+            Boolean expires,
+            @JsonProperty("expiration_date_to") String expirationDateTo) {
     }
 
+    record BackUrls(String success, String pending, String failure) {
+    }
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     record Item(
             String id,
             String title,
+            String description,
+            @JsonProperty("category_id") String categoryId,
             int quantity,
             @JsonProperty("currency_id") String currencyId,
             @JsonProperty("unit_price") BigDecimal unitPrice) {

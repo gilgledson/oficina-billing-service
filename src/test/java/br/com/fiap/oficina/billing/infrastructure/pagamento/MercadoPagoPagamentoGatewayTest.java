@@ -41,8 +41,12 @@ class MercadoPagoPagamentoGatewayTest {
     private MercadoPagoClient client;
 
     private MercadoPagoPagamentoGateway gateway(String token, String notificationUrl) {
+        return gateway(token, notificationUrl, null);
+    }
+
+    private MercadoPagoPagamentoGateway gateway(String token, String notificationUrl, String backUrl) {
         return new MercadoPagoPagamentoGateway(client, Optional.ofNullable(token),
-                Optional.ofNullable(notificationUrl));
+                Optional.ofNullable(notificationUrl), Optional.ofNullable(backUrl), "OFICINA");
     }
 
     @Test
@@ -73,6 +77,49 @@ class MercadoPagoPagamentoGatewayTest {
         assertEquals(new BigDecimal("185.00"), request.items().get(0).unitPrice());
         assertEquals("BRL", request.items().get(0).currencyId());
         assertEquals(1, request.items().get(0).quantity());
+        assertEquals("services", request.items().get(0).categoryId());
+        assertTrue(request.items().get(0).description().contains(orcamento.getOrdemServicoId().toString()));
+        assertEquals("OFICINA", request.statementDescriptor());
+        // Sem data de vencimento e sem página de retorno, esses campos não vão.
+        assertNull(request.expires());
+        assertNull(request.expirationDateTo());
+        assertNull(request.backUrls());
+        assertNull(request.autoReturn());
+    }
+
+    @Test
+    @DisplayName("O link expira no fim do dia de vencimento e volta para a página da oficina")
+    void deveEnviarVencimentoEPaginaDeRetorno() {
+        Orcamento orcamento = new Orcamento(UUID.randomUUID(), java.time.LocalDate.of(2026, 11, 11),
+                UUID.randomUUID(), java.time.LocalDate.of(2026, 12, 11), new BigDecimal("185.00"),
+                StatusOrcamento.PENDENTE, null);
+        when(client.criarPreferencia(any(), any())).thenReturn(new PreferenciaResponse("pref-3", "https://mp/3"));
+
+        gateway(TOKEN, null, "https://oficina/pagamento").criarCobranca(orcamento);
+
+        ArgumentCaptor<PreferenciaRequest> captor = ArgumentCaptor.forClass(PreferenciaRequest.class);
+        verify(client).criarPreferencia(any(), captor.capture());
+        PreferenciaRequest request = captor.getValue();
+        assertEquals(Boolean.TRUE, request.expires());
+        assertEquals("2026-12-11T23:59:59.000-03:00", request.expirationDateTo());
+        assertEquals("https://oficina/pagamento", request.backUrls().success());
+        assertEquals("https://oficina/pagamento", request.backUrls().pending());
+        assertEquals("https://oficina/pagamento", request.backUrls().failure());
+        assertEquals("approved", request.autoReturn());
+    }
+
+    @Test
+    @DisplayName("Cobrar de novo atualiza a preferência que já existe em vez de criar outra")
+    void deveAtualizarPreferenciaExistente() {
+        Orcamento orcamento = new Orcamento(UUID.randomUUID(), new BigDecimal("300.00"), null);
+        orcamento.registrarCobranca("pref-1", "https://mp/pagar");
+        when(client.atualizarPreferencia(eq("Bearer " + TOKEN), eq("pref-1"), any()))
+                .thenReturn(new PreferenciaResponse("pref-1", "https://mp/pagar"));
+
+        Cobranca cobranca = gateway(TOKEN, null).criarCobranca(orcamento);
+
+        assertEquals(new Cobranca("pref-1", "https://mp/pagar"), cobranca);
+        verify(client, org.mockito.Mockito.never()).criarPreferencia(any(), any());
     }
 
     @Test
