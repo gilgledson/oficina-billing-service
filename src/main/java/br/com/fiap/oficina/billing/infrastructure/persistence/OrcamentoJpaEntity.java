@@ -61,8 +61,17 @@ public class OrcamentoJpaEntity {
     @Column(name = "assinatura_cliente")
     private String assinaturaCliente;
 
+    @Column(name = "pagamento_externo_id")
+    private String pagamentoExternoId;
+
+    @Column(name = "link_pagamento")
+    private String linkPagamento;
+
+    @Column(name = "pagamento_id")
+    private String pagamentoId;
+
     public Orcamento toEntity() {
-        return Orcamento.reconstruir(
+        Orcamento orcamento = Orcamento.reconstruir(
                 id,
                 dataEmissao,
                 ordemServicoId,
@@ -71,6 +80,10 @@ public class OrcamentoJpaEntity {
                 status,
                 metodoPagamento,
                 assinaturaCliente);
+        orcamento.setPagamentoExternoId(pagamentoExternoId);
+        orcamento.setLinkPagamento(linkPagamento);
+        orcamento.setPagamentoId(pagamentoId);
+        return orcamento;
     }
 
     public static OrcamentoJpaEntity fromEntity(Orcamento orcamento) {
@@ -83,6 +96,9 @@ public class OrcamentoJpaEntity {
                 orcamento.getStatus(),
                 orcamento.getMetodoPagamento());
         entity.setAssinaturaCliente(orcamento.getAssinaturaUrl());
+        entity.setPagamentoExternoId(orcamento.getPagamentoExternoId());
+        entity.setLinkPagamento(orcamento.getLinkPagamento());
+        entity.setPagamentoId(orcamento.getPagamentoId());
         return entity;
     }
 

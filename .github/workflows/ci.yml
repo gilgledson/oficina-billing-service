@@ -117,6 +117,8 @@ jobs:
         RABBITMQ_PASSWORD: ${{ secrets.RABBITMQ_PASSWORD }}
         AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
         NEW_RELIC_LICENSE_KEY: ${{ secrets.NEW_RELIC_LICENSE_KEY }}
+        MERCADOPAGO_ACCESS_TOKEN: ${{ secrets.MERCADOPAGO_ACCESS_TOKEN }}
+        MERCADOPAGO_WEBHOOK_SECRET: ${{ secrets.MERCADOPAGO_WEBHOOK_SECRET }}
       run: |
         kubectl create secret generic oficina-billing-secrets \
           --from-literal=db-password="$DB_PASSWORD" \
@@ -124,6 +126,8 @@ jobs:
           --from-literal=rabbitmq-password="$RABBITMQ_PASSWORD" \
           --from-literal=azure-storage-connection-string="$AZURE_STORAGE_CONNECTION_STRING" \
           --from-literal=new-relic-license-key="$NEW_RELIC_LICENSE_KEY" \
+          --from-literal=mercadopago-access-token="$MERCADOPAGO_ACCESS_TOKEN" \
+          --from-literal=mercadopago-webhook-secret="$MERCADOPAGO_WEBHOOK_SECRET" \
           --dry-run=client -o yaml > k8s/secret.yaml
 
     - name: Deploy no Kubernetes (AKS)

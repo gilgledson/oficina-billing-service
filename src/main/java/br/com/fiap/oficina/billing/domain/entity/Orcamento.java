@@ -21,6 +21,12 @@ public class Orcamento {
     private BigDecimal valorTotal;
     private StatusOrcamento status;
     private String assinaturaUrl;
+    /** ID da cobrança no provedor de pagamentos (preferência do Mercado Pago). */
+    private String pagamentoExternoId;
+    /** Link em que o cliente paga o orçamento. */
+    private String linkPagamento;
+    /** ID, no provedor, do pagamento que quitou o orçamento. Nulo em pagamento no balcão. */
+    private String pagamentoId;
 
     public static Orcamento reconstruir(UUID id, LocalDate dataEmissao, UUID ordemServicoId, LocalDate dataVencimento,
             BigDecimal valorTotal, StatusOrcamento status, MetodoPagamento metodoPagamento, String assinaturaUrl) {
@@ -89,6 +95,23 @@ public class Orcamento {
         }
         this.status = StatusOrcamento.PAGO;
         this.metodoPagamento = metodoPagamento;
+    }
+
+    public void registrarCobranca(String pagamentoExternoId, String linkPagamento) {
+        if (pagamentoExternoId == null || pagamentoExternoId.isBlank()) {
+            throw new IllegalArgumentException("O identificador da cobrança é obrigatório.");
+        }
+        if (linkPagamento == null || linkPagamento.isBlank()) {
+            throw new IllegalArgumentException("O link de pagamento é obrigatório.");
+        }
+        this.pagamentoExternoId = pagamentoExternoId;
+        this.linkPagamento = linkPagamento;
+    }
+
+    /** Pagamento aprovado no provedor de pagamentos. */
+    public void pagar(MetodoPagamento metodoPagamento, String pagamentoId) {
+        pagar(metodoPagamento);
+        this.pagamentoId = pagamentoId;
     }
 
     public void pendente() {

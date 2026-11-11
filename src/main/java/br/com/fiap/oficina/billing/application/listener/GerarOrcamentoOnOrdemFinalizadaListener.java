@@ -10,6 +10,7 @@ import br.com.fiap.oficina.billing.application.gateway.EventPublisher;
 import br.com.fiap.oficina.billing.application.usecase.comandos.AtualizarOrcamentoUseCase;
 import br.com.fiap.oficina.billing.application.usecase.comandos.CancelarOrcamentoUseCase;
 import br.com.fiap.oficina.billing.application.usecase.comandos.CriarOrcamentoUseCase;
+import br.com.fiap.oficina.billing.application.usecase.comandos.GerarCobrancaUseCase;
 import br.com.fiap.oficina.billing.domain.entity.Orcamento;
 import br.com.fiap.oficina.billing.domain.valueObject.MetodoPagamento;
 import io.vertx.core.json.JsonObject;
@@ -30,6 +31,7 @@ public class GerarOrcamentoOnOrdemFinalizadaListener {
     private final CriarOrcamentoUseCase criarOrcamentoUseCase;
     private final AtualizarOrcamentoUseCase atualizarOrcamentoUseCase;
     private final CancelarOrcamentoUseCase cancelarOrcamentoUseCase;
+    private final GerarCobrancaUseCase gerarCobrancaUseCase;
     private final EventPublisher eventPublisher;
 
     /** Diagnóstico concluído: gera o orçamento que o cliente vai aprovar. */
@@ -49,10 +51,20 @@ public class GerarOrcamentoOnOrdemFinalizadaListener {
         }
     }
 
-    /** Execução concluída: o orçamento passa a refletir o valor final da OS. */
+    /**
+     * Execução concluída: o orçamento passa a refletir o valor final da OS e a
+     * cobrança é criada no provedor de pagamentos.
+     */
     public void onExecucaoConcluida(JsonObject json) {
         UUID ordemServicoId = UUID.fromString(json.getString("ordemServicoId"));
         atualizarOrcamentoUseCase.executar(ordemServicoId, lerValor(json));
+        try {
+            gerarCobrancaUseCase.paraOrdemDeServico(ordemServicoId);
+        } catch (RuntimeException e) {
+            // O valor final já foi gravado; rejeitar o evento não ajudaria. O
+            // atendente gera o link de novo em POST /api/orcamentos/{id}/pagamento.
+            LOG.errorf(e, "Falha ao criar a cobrança da OS %s no provedor de pagamentos", ordemServicoId);
+        }
     }
 
     /** OS cancelada: compensa cancelando o orçamento. */

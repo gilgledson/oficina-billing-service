@@ -4,7 +4,10 @@ public enum MetodoPagamento {
     DINHEIRO,
     CARTAO_CREDITO,
     CARTAO_DEBITO,
-    PIX
+    PIX,
+    BOLETO,
+    /** Saldo da conta do cliente no provedor de pagamentos. */
+    SALDO_EM_CONTA
 }
 
 
