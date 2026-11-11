@@ -24,6 +24,7 @@ import br.com.fiap.oficina.billing.application.gateway.EventPublisher;
 import br.com.fiap.oficina.billing.application.usecase.comandos.AtualizarOrcamentoUseCase;
 import br.com.fiap.oficina.billing.application.usecase.comandos.CancelarOrcamentoUseCase;
 import br.com.fiap.oficina.billing.application.usecase.comandos.CriarOrcamentoUseCase;
+import br.com.fiap.oficina.billing.application.usecase.comandos.GerarCobrancaUseCase;
 import br.com.fiap.oficina.billing.domain.entity.Orcamento;
 import br.com.fiap.oficina.billing.domain.valueObject.MetodoPagamento;
 import io.vertx.core.json.JsonObject;
@@ -39,6 +40,9 @@ class GerarOrcamentoOnOrdemFinalizadaListenerTest {
 
     @Mock
     private CancelarOrcamentoUseCase cancelarOrcamentoUseCase;
+
+    @Mock
+    private GerarCobrancaUseCase gerarCobrancaUseCase;
 
     @Mock
     private EventPublisher eventPublisher;
@@ -139,5 +143,28 @@ class GerarOrcamentoOnOrdemFinalizadaListenerTest {
         listener.onOrdemCancelada(new JsonObject().put("ordemServicoId", osId.toString()));
 
         verify(cancelarOrcamentoUseCase).executar(osId);
+    }
+
+    @Test
+    @DisplayName("Execução concluída atualiza o valor e cria a cobrança no provedor")
+    void deveGerarCobrancaAoConcluirExecucao() {
+        UUID osId = UUID.randomUUID();
+
+        listener.onExecucaoConcluida(new JsonObject().put("ordemServicoId", osId.toString()).put("valorTotal", 755.0));
+
+        verify(atualizarOrcamentoUseCase).executar(osId, new BigDecimal("755.0"));
+        verify(gerarCobrancaUseCase).paraOrdemDeServico(osId);
+    }
+
+    @Test
+    @DisplayName("Falha ao criar a cobrança não rejeita o evento de execução concluída")
+    void naoDeveRejeitarEventoQuandoCobrancaFalha() {
+        UUID osId = UUID.randomUUID();
+        doThrow(new IllegalStateException("Mercado Pago fora do ar")).when(gerarCobrancaUseCase)
+                .paraOrdemDeServico(osId);
+
+        listener.onExecucaoConcluida(new JsonObject().put("ordemServicoId", osId.toString()).put("valorTotal", 10));
+
+        verify(atualizarOrcamentoUseCase).executar(osId, new BigDecimal("10"));
     }
 }

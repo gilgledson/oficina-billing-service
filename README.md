@@ -19,6 +19,7 @@ Responsabilidades:
 | Banco de dados | PostgreSQL próprio (database `billing`), migrações com Flyway |
 | Mensageria | RabbitMQ (SmallRye Reactive Messaging) |
 | Comunicação síncrona | REST Client para o OS Service |
+| Pagamentos | Mercado Pago (Checkout Pro), via REST Client e webhook |
 | Autenticação | JWT RS256 emitido pelo OS Service; aqui só é validado |
 | Observabilidade | New Relic (Java Agent), logs JSON com `correlationId` |
 | Testes e qualidade | JUnit 5, Mockito, JaCoCo (mínimo de 80%), SonarCloud |
@@ -34,6 +35,8 @@ flowchart LR
     MQ -->|fila billing.os-events| B
     B -->|billing.*| MQ
     B --> BLOB[(Azure Blob<br/>assinaturas)]
+    B -->|REST: cria cobrança,<br/>consulta pagamento| MP[Mercado Pago]
+    MP -->|webhook de pagamento| GW
 ```
 
 O código segue a mesma organização do monólito:
@@ -74,7 +77,7 @@ Fila `billing.os-events`, ligada à exchange `oficina.events` (tipo `topic`).
 | Routing key | Payload | O que o Billing faz |
 |---|---|---|
 | `os.diagnostico-concluido` | `ordemServicoId`, `valorTotal`, `metodoPagamento` (opcional) | Gera o orçamento e publica `billing.orcamento-gerado` |
-| `os.execucao-concluida` | `ordemServicoId`, `valorTotal` | Atualiza o orçamento com o valor final |
+| `os.execucao-concluida` | `ordemServicoId`, `valorTotal` | Atualiza o orçamento com o valor final e cria a cobrança no Mercado Pago |
 | `os.cancelada`, `os.rejeitada` | `ordemServicoId` | **Compensação:** cancela o orçamento |
 
 ### Eventos publicados
@@ -86,7 +89,8 @@ Fila `billing.os-events`, ligada à exchange `oficina.events` (tipo `topic`).
 | `billing.orcamento-rejeitado` | `orcamentoId`, `ordemServicoId` | **Compensação:** cliente rejeitou tudo |
 | `billing.orcamento-falhou` | `ordemServicoId`, `motivo` | **Compensação:** não foi possível gerar o orçamento |
 | `billing.orcamento-cancelado` | `orcamentoId`, `ordemServicoId`, `estornoNecessario` | Orçamento cancelado porque a OS foi cancelada |
-| `billing.pagamento-confirmado` | `orcamentoId`, `ordemServicoId` | Pagamento registrado |
+| `billing.pagamento-confirmado` | `orcamentoId`, `ordemServicoId` | Pagamento aprovado no Mercado Pago ou registrado pelo atendente |
+| `billing.pagamento-recusado` | `orcamentoId`, `ordemServicoId`, `pagamentoId`, `motivo` | O Mercado Pago recusou uma tentativa de pagamento |
 
 ### Consistência
 
@@ -100,14 +104,65 @@ Fila `billing.os-events`, ligada à exchange `oficina.events` (tipo `topic`).
 - **Fila de mensagens mortas:** mensagem que falha no processamento vai para
   `billing.os-events.dlq`.
 
+## Pagamento com Mercado Pago
+
+A cobrança usa o **Checkout Pro**: o Billing cria uma preferência de pagamento
+e o cliente paga no link do Mercado Pago, com o meio que preferir.
+
+```mermaid
+sequenceDiagram
+    participant OS as OS Service
+    participant B as Billing
+    participant MP as Mercado Pago
+    participant C as Cliente
+    OS-->>B: os.execucao-concluida (valor final)
+    B->>MP: POST /checkout/preferences (external_reference = ID do orçamento)
+    MP-->>B: ID da preferência e link de pagamento
+    C->>MP: paga no link
+    MP->>B: POST /api/orcamentos/webhooks/mercadopago (ID do pagamento)
+    B->>MP: GET /v1/payments/{id}
+    MP-->>B: status, valor e external_reference
+    B-->>OS: billing.pagamento-confirmado
+```
+
+- **Quando a cobrança é criada:** ao fim da execução, quando o valor final da
+  OS é conhecido. O link fica no campo `linkPagamento` do orçamento. Se o
+  Mercado Pago estiver fora do ar nesse momento, o evento não é rejeitado; o
+  atendente gera o link depois em `POST /api/orcamentos/{id}/pagamento`.
+- **Notificação não é verdade:** o webhook só traz o ID do pagamento. O
+  Billing consulta o pagamento na API do Mercado Pago e só confirma se ele
+  estiver aprovado, referenciar o orçamento e cobrir o valor total.
+- **Assinatura:** com `MERCADOPAGO_WEBHOOK_SECRET` configurado, o header
+  `x-signature` é conferido (HMAC-SHA256) e notificação com assinatura
+  inválida recebe `401`.
+- **Idempotência:** o Mercado Pago reenvia a mesma notificação; orçamento já
+  pago não é confirmado de novo.
+- **Pagamento recusado:** o orçamento continua `PENDENTE` e a OS continua
+  aguardando pagamento, porque o cliente pode tentar de novo no mesmo link. O
+  Billing publica `billing.pagamento-recusado`.
+- **Pagamento de orçamento cancelado:** não é confirmado; fica registrado em
+  log de erro para estorno manual.
+- **Sem credenciais:** sem `MERCADOPAGO_ACCESS_TOKEN` a integração fica
+  desligada e o pagamento é registrado pelo atendente em `/confirmar-pagamento`
+  (rota que continua valendo para pagamento no balcão).
+
+Para configurar: crie uma aplicação em
+[Suas integrações](https://www.mercadopago.com.br/developers/panel/app), copie
+o access token de teste para `MERCADOPAGO_ACCESS_TOKEN`, cadastre o webhook de
+pagamentos apontando para `/api/orcamentos/webhooks/mercadopago` e copie a
+chave secreta dele para `MERCADOPAGO_WEBHOOK_SECRET`.
+
 ## API
 
-Todas as rotas exigem JWT com perfil `ADMIN` ou `ATENDENTE`.
+As rotas exigem JWT com perfil `ADMIN` ou `ATENDENTE`, menos o webhook, que é
+chamado pelo Mercado Pago.
 
 | Método | Rota | Descrição |
 |---|---|---|
 | `POST` | `/api/orcamentos/{id}/aceitar` | Aceite do orçamento com assinatura em Base64 |
-| `POST` | `/api/orcamentos/{id}/confirmar-pagamento` | Registra o pagamento |
+| `POST` | `/api/orcamentos/{id}/pagamento` | Gera (ou gera de novo) o link de pagamento no Mercado Pago |
+| `POST` | `/api/orcamentos/{id}/confirmar-pagamento` | Registra um pagamento feito no balcão |
+| `POST` | `/api/orcamentos/webhooks/mercadopago` | Webhook de pagamento do Mercado Pago (sem JWT) |
 | `GET` | `/api/orcamentos/{id}` | PDF do orçamento |
 | `GET` | `/api/orcamentos/ordem-servico/{id}` | PDF do orçamento de uma OS |
 | `GET` | `/api/orcamentos/ordem-servico/{id}/json` | Orçamento de uma OS em JSON |
@@ -154,6 +209,10 @@ Testes e cobertura (falha abaixo de 80% de linhas; relatório em
 | `OS_SERVICE_URL` | URL base do OS Service | `http://localhost:8383` |
 | `STORAGE_TYPE` | `local` ou `azure` | `local` |
 | `AZURE_STORAGE_CONNECTION_STRING`, `AZURE_STORAGE_CONTAINER` | Blob das assinaturas | emulador Azurite |
+| `MERCADOPAGO_ACCESS_TOKEN` | Access token da aplicação no Mercado Pago | vazio (integração desligada) |
+| `MERCADOPAGO_WEBHOOK_SECRET` | Chave secreta do webhook | vazio (assinatura não conferida) |
+| `MERCADOPAGO_NOTIFICATION_URL` | URL pública do webhook, enviada em cada cobrança | vazio (vale a do painel) |
+| `MERCADOPAGO_API_URL` | Endereço da API do Mercado Pago | `https://api.mercadopago.com` |
 
 ## CI/CD
 
@@ -169,7 +228,8 @@ Configuração necessária no repositório:
 
 - Secrets: `SONAR_TOKEN` (opcional), `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`,
   `AZURE_CREDENTIALS`, `BILLING_DB_PASSWORD`, `RABBITMQ_USERNAME`,
-  `RABBITMQ_PASSWORD`, `AZURE_STORAGE_CONNECTION_STRING`, `NEW_RELIC_LICENSE_KEY`.
+  `RABBITMQ_PASSWORD`, `AZURE_STORAGE_CONNECTION_STRING`, `NEW_RELIC_LICENSE_KEY`,
+  `MERCADOPAGO_ACCESS_TOKEN`, `MERCADOPAGO_WEBHOOK_SECRET`.
 - Variables: `SONAR_ORGANIZATION`, `SONAR_PROJECT_KEY`.
 
 ## Teste integrado
@@ -178,8 +238,10 @@ Validado de ponta a ponta com Postgres e RabbitMQ reais, junto com os outros doi
 
 ## Pendências
 
-- Integração com o **Mercado Pago**: hoje o pagamento é confirmado manualmente
-  pelo atendente em `/confirmar-pagamento`.
-- Cenário **BDD** do fluxo completo da OS.
+- Mercado Pago: a integração foi validada com testes unitários e, no ambiente
+  integrado, contra um Mercado Pago simulado. Falta rodar com credenciais de
+  teste reais e cadastrar o webhook no painel.
+- Estorno automático quando chega pagamento de um orçamento cancelado.
+- O OS Service ainda não consome `billing.pagamento-recusado`.
 - Evidência de cobertura e link do SonarCloud, depois da primeira execução do
   pipeline.

@@ -12,3 +12,7 @@ data:
   RABBITMQ_PORT: "5672"
   OS_SERVICE_URL: "http://oficina-api-service:8080"
   NEW_RELIC_APP_NAME: "Oficina Billing Service (AKS)"
+  # URL pública do webhook do Mercado Pago, no endereço do API Gateway:
+  # https://<host-do-gateway>/api/orcamentos/webhooks/mercadopago
+  # Vazia, a notificação segue a URL cadastrada no painel do Mercado Pago.
+  MERCADOPAGO_NOTIFICATION_URL: ""

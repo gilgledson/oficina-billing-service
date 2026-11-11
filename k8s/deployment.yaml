@@ -72,3 +72,17 @@ spec:
             secretKeyRef:
               name: oficina-billing-secrets
               key: new-relic-license-key
+        # Mercado Pago: sem o access token a integração fica desligada e o
+        # pagamento segue manual.
+        - name: MERCADOPAGO_ACCESS_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: oficina-billing-secrets
+              key: mercadopago-access-token
+              optional: true
+        - name: MERCADOPAGO_WEBHOOK_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: oficina-billing-secrets
+              key: mercadopago-webhook-secret
+              optional: true

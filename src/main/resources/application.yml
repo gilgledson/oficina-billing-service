@@ -31,6 +31,10 @@ quarkus:
       url: ${OS_SERVICE_URL:http://localhost:8383}
       connect-timeout: 2000
       read-timeout: 5000
+    mercadopago:
+      url: ${MERCADOPAGO_API_URL:https://api.mercadopago.com}
+      connect-timeout: 3000
+      read-timeout: 10000
 
 # O Billing só valida o JWT (chave pública); quem emite é o OS Service.
 mp:
@@ -73,6 +77,14 @@ rabbitmq-username: ${RABBITMQ_USERNAME:guest}
 rabbitmq-password: ${RABBITMQ_PASSWORD:guest}
 
 oficina:
+  # Mercado Pago (Checkout Pro). Sem access token a integração fica desligada e
+  # o pagamento segue manual, em /confirmar-pagamento.
+  mercadopago:
+    access-token: ${MERCADOPAGO_ACCESS_TOKEN:}
+    # Chave secreta do webhook, para conferir o header x-signature.
+    webhook-secret: ${MERCADOPAGO_WEBHOOK_SECRET:}
+    # URL pública de POST /api/orcamentos/webhooks/mercadopago.
+    notification-url: ${MERCADOPAGO_NOTIFICATION_URL:}
   outbox:
     # Intervalo de entrega dos eventos pendentes da outbox ao RabbitMQ.
     intervalo: 2s

@@ -5,6 +5,7 @@ import br.com.fiap.oficina.billing.application.usecase.consultas.BaixarOrcamento
 import br.com.fiap.oficina.billing.api.dto.AceitarOrcamentoRequest;
 import br.com.fiap.oficina.billing.api.dto.ConfirmarPagamentoRequest;
 import br.com.fiap.oficina.billing.application.usecase.comandos.ConfirmarPagamentoOrcamentoUseCase;
+import br.com.fiap.oficina.billing.application.usecase.comandos.GerarCobrancaUseCase;
 import br.com.fiap.oficina.billing.domain.entity.Orcamento;
 import br.com.fiap.oficina.billing.shared.security.Perfis;
 import jakarta.annotation.security.RolesAllowed;
@@ -45,6 +46,8 @@ public class OrcamentoController {
 
     private final AssinaturaStorageService storageService;
 
+    private final GerarCobrancaUseCase gerarCobrancaUseCase;
+
     @Context
     UriInfo uriInfo;
 
@@ -55,6 +58,17 @@ public class OrcamentoController {
     public Response confirmarPagamento(@PathParam("id") UUID id, @Valid ConfirmarPagamentoRequest request) {
         confirmarPagamentoOrcamentoUseCase.execute(id, request.metodoPagamento());
         return Response.noContent().build();
+    }
+
+    @POST
+    @Path("/{id}/pagamento")
+    @RolesAllowed({ Perfis.ADMIN, Perfis.ATENDENTE })
+    @Operation(summary = "Gerar (ou gerar de novo) o link de pagamento do orçamento no Mercado Pago")
+    public Response gerarPagamento(@PathParam("id") UUID id) {
+        Orcamento orcamento = gerarCobrancaUseCase.paraOrcamento(id);
+        return Response.ok(new JsonObject()
+                .put("pagamentoExternoId", orcamento.getPagamentoExternoId())
+                .put("linkPagamento", orcamento.getLinkPagamento())).build();
     }
 
     @POST
