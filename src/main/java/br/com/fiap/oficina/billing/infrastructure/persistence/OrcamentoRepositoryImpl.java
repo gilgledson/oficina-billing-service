@@ -34,8 +34,8 @@ public class OrcamentoRepositoryImpl implements OrcamentoRepository, PanacheRepo
     @Override
     @Transactional
     public Orcamento atualizar(Orcamento orcamento) {
-        OrcamentoJpaEntity entity = OrcamentoJpaEntity.fromEntity(orcamento);
-        getEntityManager().merge(entity);
-        return entity.toEntity();
+        // merge() devolve a instância gerenciada; a que foi passada continua solta.
+        OrcamentoJpaEntity gerenciada = getEntityManager().merge(OrcamentoJpaEntity.fromEntity(orcamento));
+        return gerenciada.toEntity();
     }
 }
