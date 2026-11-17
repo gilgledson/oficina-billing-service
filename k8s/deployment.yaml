@@ -17,11 +17,15 @@ spec:
         image: docker.io/gilgledson/oficina-billing-service:latest
         imagePullPolicy: Always
         resources:
+          # A JVM parada consome por volta de 100m. Com a reserva antiga, de
+          # 100m, o HPA via 100% de uso sem nenhuma carga e escalava até o
+          # máximo; as JVMs subindo juntas saturavam o nó e as sondas matavam
+          # os pods em cascata.
           requests:
-            cpu: "100m"
+            cpu: "200m"
             memory: "256Mi"
           limits:
-            cpu: "500m"
+            cpu: "1000m" # folga para a subida da JVM, que é o pico de CPU
             memory: "512Mi"
         ports:
         - containerPort: 8080
@@ -30,19 +34,22 @@ spec:
             path: /q/health/started
             port: 8080
           periodSeconds: 5
-          failureThreshold: 30
+          timeoutSeconds: 3
+          failureThreshold: 60 # até 5 minutos para subir em um nó disputado
         readinessProbe:
           httpGet:
             path: /q/health/ready
             port: 8080
           periodSeconds: 10
+          timeoutSeconds: 3
           failureThreshold: 3
         livenessProbe:
           httpGet:
             path: /q/health/live
             port: 8080
           periodSeconds: 15
-          failureThreshold: 3
+          timeoutSeconds: 5
+          failureThreshold: 4
         envFrom:
         - configMapRef:
             name: oficina-billing-config
