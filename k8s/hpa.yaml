@@ -8,7 +8,11 @@ spec:
     kind: Deployment
     name: oficina-billing
   minReplicas: 1
-  maxReplicas: 4
+  # Limitado ao que cabe no cluster de dois nós de 2 vCPUs: o sistema do AKS
+  # e o New Relic reservam cerca de 700m por nó, e o resto é dividido entre
+  # os três serviços, o RabbitMQ e o MongoDB. Réplica que não couber fica
+  # pendente, sem derrubar as outras.
+  maxReplicas: 2
   metrics:
   - type: Resource
     resource:
@@ -16,3 +20,14 @@ spec:
       target:
         type: Utilization
         averageUtilization: 70
+  # Sobe uma réplica por vez e espera dois minutos antes de decidir de novo:
+  # evita que o pico de CPU da subida de uma JVM dispare várias outras.
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 120
+      policies:
+      - type: Pods
+        value: 1
+        periodSeconds: 120
+    scaleDown:
+      stabilizationWindowSeconds: 300
