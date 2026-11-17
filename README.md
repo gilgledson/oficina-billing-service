@@ -230,6 +230,23 @@ Testes e cobertura (falha abaixo de 80% de linhas; relatório em
 | `MERCADOPAGO_STATEMENT_DESCRIPTOR` | Nome na fatura do cartão | `OFICINA` |
 | `MERCADOPAGO_API_URL` | Endereço da API do Mercado Pago | `https://api.mercadopago.com` |
 
+## Qualidade
+
+Última análise do SonarCloud na `main` (projeto
+`gilgledson_oficina-billing-service`):
+
+| Métrica | Valor |
+|---|---|
+| Quality gate | Aprovado |
+| Bugs | 0 |
+| Vulnerabilidades | 0 |
+| Code smells | 0 |
+| Duplicação | 0% |
+| Cobertura de linhas | 93,5% |
+
+O mínimo de 80% de cobertura também é exigido pelo JaCoCo no build: abaixo
+disso, o pipeline falha antes da análise.
+
 ## CI/CD
 
 O pipeline em [`.github/workflows/ci.yml`](.github/workflows/ci.yml) tem dois jobs:
@@ -264,5 +281,3 @@ Validado de ponta a ponta com Postgres e RabbitMQ reais, junto com os outros doi
   avaliação de qualidade do Mercado Pago. Eles estão no OS Service, e a
   cobrança nasce de um evento, sem JWT de usuário para repassar na consulta.
 - O OS Service ainda não consome `billing.pagamento-recusado`.
-- Evidência de cobertura e link do SonarCloud, depois da primeira execução do
-  pipeline.
