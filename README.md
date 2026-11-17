@@ -236,7 +236,8 @@ O pipeline em [`.github/workflows/ci.yml`](.github/workflows/ci.yml) tem dois jo
 
 1. **Build, testes e qualidade** — em todo PR e push na `main`: compila, roda
    os testes e exige 80% de cobertura. Se o secret `SONAR_TOKEN` estiver
-   configurado, envia também a análise ao SonarCloud.
+   configurado, envia também a análise ao SonarCloud (projeto
+   `gilgledson_oficina-billing-service`, na organização `oficina-fiap`).
 2. **Deploy** — só em push na `main`: publica a imagem no Docker Hub e aplica
    os manifestos de [`k8s/`](k8s) no AKS.
 
