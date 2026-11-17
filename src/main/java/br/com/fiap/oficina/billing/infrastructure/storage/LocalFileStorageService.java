@@ -7,12 +7,15 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Base64;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 @Local
 @ApplicationScoped
 public class LocalFileStorageService implements AssinaturaStorageService {
 
     private static final String UPLOAD_DIR = "uploads/assinaturas";
+    /** Letras, números, ponto, hífen e sublinhado; não pode começar com ponto. */
+    private static final Pattern NOME_SEGURO = Pattern.compile("^[A-Za-z0-9_-][A-Za-z0-9._-]{0,254}$");
 
     @Override
     public String store(byte[] content, String originalFilename) {
@@ -46,11 +49,21 @@ public class LocalFileStorageService implements AssinaturaStorageService {
         return store(decodedBytes, filenamePrefix + ".png");
     }
 
+    /**
+     * O nome vem da URL, então é tratado como entrada não confiável: só são
+     * aceitos nomes simples, e o caminho resolvido precisa continuar dentro da
+     * pasta de uploads. Sem isso, um nome como "../../etc/passwd" leria
+     * qualquer arquivo do servidor.
+     */
     @Override
     public byte[] baixar(String filename) {
+        if (filename == null || !NOME_SEGURO.matcher(filename).matches()) {
+            return null;
+        }
         try {
-            Path filePath = Paths.get(UPLOAD_DIR, filename);
-            if (!Files.exists(filePath)) {
+            Path base = Paths.get(UPLOAD_DIR).toAbsolutePath().normalize();
+            Path filePath = base.resolve(filename).normalize();
+            if (!filePath.startsWith(base) || !Files.isRegularFile(filePath)) {
                 return null;
             }
             return Files.readAllBytes(filePath);
